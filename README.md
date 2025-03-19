@@ -59,36 +59,138 @@ groups:
           description: "{{ $labels.instance }} has been down for more than 5 minutes."
 ```
 
-## 使用方法
-
-1. 启动服务后，可以通过以下方式访问：
-   - 规则列表：`http://localhost:8080/rules`
-   - 健康检查：`http://localhost:8080/health`
-
-2. 服务支持通过启动参数配置规则组数量和每组规则数：
-```bash
-./vm-server -groups 5 -rules 10
-```
-
 ## API文档
 
-### GET /rules
-获取所有告警规则组
+### 获取告警规则列表
+
+**GET /api/rules**
+
+获取所有告警规则或按组名筛选规则。
+
+**查询参数：**
+- `group_name` (可选): 按组名筛选规则
+
+**响应示例：**
+```json
+[
+  {
+    "id": 1,
+    "name": "HighCPUUsage",
+    "alert": "HighCPUUsage",
+    "expr": "100 - (avg by(instance) (rate(node_cpu_seconds_total{mode=\"idle\"}[5m])) * 100) > 80",
+    "for": "5m",
+    "labels": "{\"severity\":\"warning\"}",
+    "annotations": "{\"description\":\"CPU使用率超过80%\",\"summary\":\"服务器CPU使用率过高\"}",
+    "group_name": "system_metrics",
+    "enabled": true,
+    "created_at": "2023-12-01T10:00:00Z",
+    "updated_at": "2023-12-01T10:00:00Z"
+  }
+]
+```
+
+### 创建告警规则
+
+**POST /api/rules**
+
+创建新的告警规则。
+
+**请求体：**
+```json
+{
+  "name": "HighMemoryUsage",
+  "alert": "HighMemoryUsage",
+  "expr": "(node_memory_MemTotal_bytes - node_memory_MemAvailable_bytes) / node_memory_MemTotal_bytes * 100 > 90",
+  "for": "5m",
+  "labels": {
+    "severity": "warning"
+  },
+  "annotations": {
+    "description": "内存使用率超过90%",
+    "summary": "服务器内存使用率过高"
+  },
+  "group_name": "system_metrics",
+  "enabled": true
+}
+```
 
 **响应示例：**
 ```json
 {
-  "groups": [
-    {
-      "name": "group_1",
-      "rules": [...]
-    }
-  ]
+  "id": 2,
+  "name": "HighMemoryUsage",
+  "alert": "HighMemoryUsage",
+  "expr": "(node_memory_MemTotal_bytes - node_memory_MemAvailable_bytes) / node_memory_MemTotal_bytes * 100 > 90",
+  "for": "5m",
+  "labels": "{\"severity\":\"warning\"}",
+  "annotations": "{\"description\":\"内存使用率超过90%\",\"summary\":\"服务器内存使用率过高\"}",
+  "group_name": "system_metrics",
+  "enabled": true,
+  "created_at": "2023-12-01T11:00:00Z",
+  "updated_at": "2023-12-01T11:00:00Z"
 }
 ```
 
-### GET /health
-服务健康检查接口
+### 更新告警规则
+
+**PUT /api/rules/:id**
+
+更新指定ID的告警规则。
+
+**请求体：**
+```json
+{
+  "name": "HighMemoryUsage",
+  "alert": "HighMemoryUsage",
+  "expr": "(node_memory_MemTotal_bytes - node_memory_MemAvailable_bytes) / node_memory_MemTotal_bytes * 100 > 95",
+  "for": "10m",
+  "labels": {
+    "severity": "critical"
+  },
+  "annotations": {
+    "description": "内存使用率超过95%",
+    "summary": "服务器内存使用率严重过高"
+  },
+  "group_name": "system_metrics",
+  "enabled": true
+}
+```
+
+**响应示例：**
+```json
+{
+  "id": 2,
+  "name": "HighMemoryUsage",
+  "alert": "HighMemoryUsage",
+  "expr": "(node_memory_MemTotal_bytes - node_memory_MemAvailable_bytes) / node_memory_MemTotal_bytes * 100 > 95",
+  "for": "10m",
+  "labels": "{\"severity\":\"critical\"}",
+  "annotations": "{\"description\":\"内存使用率超过95%\",\"summary\":\"服务器内存使用率严重过高\"}",
+  "group_name": "system_metrics",
+  "enabled": true,
+  "created_at": "2023-12-01T11:00:00Z",
+  "updated_at": "2023-12-01T12:00:00Z"
+}
+```
+
+### 删除告警规则
+
+**DELETE /api/rules/:id**
+
+删除指定ID的告警规则。
+
+**响应示例：**
+```json
+{
+  "message": "规则删除成功"
+}
+```
+
+### 健康检查
+
+**GET /health**
+
+服务健康检查接口。
 
 **响应示例：**
 ```json
@@ -99,10 +201,7 @@ groups:
 
 ## 注意事项
 
-1. 确保template.yaml文件格式正确
-2. 在生产环境中建议使用Docker部署
-3. 合理配置规则组数量和规则数，避免资源占用过高
-
-## 许可证
-
-MIT License
+1. 所有API请求需要在Header中设置`Content-Type: application/json`
+2. 创建和更新规则时，labels和annotations字段支持JSON格式的字符串
+3. 规则名称在同一组内必须唯一
+4. 时间间隔(for)的格式必须符合Prometheus duration格式（如：5m, 1h, 1d等）

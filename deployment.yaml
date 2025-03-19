@@ -1,0 +1,86 @@
+apiVersion: v1
+data:
+  alertmanager.yml: |
+    route:
+      receiver: blackhole
+    receivers:
+    - name: blackhole
+kind: ConfigMap
+metadata:
+    meta.helm.sh/release-namespace: vm-benchmark
+  name: benchmark-alertmanager-cm
+  namespace: vm-benchmark
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: benchmark-vmalert-vm
+  namespace: vm-benchmark
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      chart-name: benchmark
+      job: vmalert
+      remote-storage-name: vm
+  strategy:
+    type: Recreate
+  template:
+    metadata:
+      labels:
+        job: vmalert
+        remote-storage-name: vm
+    spec:
+      containers:
+      - args:
+        - --groups=100
+        - --rules=100
+        image: registry.kbsonlong.com/library/vmalert-rules-server
+        imagePullPolicy: IfNotPresent
+        name: vmalert-rules
+        ports:
+        - containerPort: 8080
+          name: rules
+          protocol: TCP
+        resources: {}
+        terminationMessagePath: /dev/termination-log
+        terminationMessagePolicy: File
+      - args:
+        - --httpListenAddr=:8880
+        - --notifier.url=http://127.0.0.1:9093
+        - --rule=http://127.0.0.1:8080/rules
+        - --evaluationInterval=10s
+        - --datasource.url=http://vmauth-victoria-metrics-auth.monitor.svc.cluster.local.:8427
+        - --datasource.bearerToken=yBYmTkjrAeo2RvYY
+        image: registry.kbsonlong.com/library/vmalert:v1.102.1
+        imagePullPolicy: IfNotPresent
+        name: vmalert
+        ports:
+        - containerPort: 8880
+          name: metrics
+          protocol: TCP
+        resources: {}
+        terminationMessagePath: /dev/termination-log
+        terminationMessagePolicy: File
+      - args:
+        - --web.listen-address=:9093
+        - --config.file=/config/alertmanager.yml
+        image: registry.kbsonlong.com/library/alertmanager:v0.24.0
+        imagePullPolicy: IfNotPresent
+        name: alertmanager
+        resources: {}
+        terminationMessagePath: /dev/termination-log
+        terminationMessagePolicy: File
+        volumeMounts:
+        - mountPath: /config
+          name: alertmanager-cfg
+      dnsPolicy: ClusterFirst
+      restartPolicy: Always
+      schedulerName: default-scheduler
+      securityContext: {}
+      terminationGracePeriodSeconds: 30
+      volumes:
+      - configMap:
+          defaultMode: 420
+          name: benchmark-alertmanager-cm
+        name: alertmanager-cfg

@@ -3,24 +3,21 @@ ARG TARGETOS=linux
 ARG TARGETARCH=amd64
 
 # Build stage
-FROM --platform=linux/amd64 golang:1.20-alpine AS builder
+FROM --platform=$TARGETOS/$TARGETARCH golang:1.21-alpine AS builder
 
 WORKDIR /app
 
 # Install build dependencies
 RUN apk add --no-cache git
 
-# Copy go mod files
-COPY go.mod go.sum ./
+# Copy source code
+COPY . .
 
 # Download dependencies
 RUN go mod download
 
-# Copy source code
-COPY main.go .
-
 # Build the application
-RUN CGO_ENABLED=0 GOOS=$TARGETOS GOARCH=$TARGETARCH go build -ldflags="-s -w" -o vm-server
+RUN CGO_ENABLED=0 GOOS=${TARGETOS} GOARCH=${TARGETARCH} go build -ldflags="-s -w" -o vm-server
 
 # Final stage
 FROM --platform=$TARGETOS/$TARGETARCH alpine:3.18

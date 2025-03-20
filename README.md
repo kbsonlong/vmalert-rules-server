@@ -6,6 +6,10 @@
 
 - 基于Gin框架的轻量级Web服务
 - 支持动态生成告警规则组
+- 支持数据库持久化存储规则
+- 支持通过API管理告警规则（CRUD操作）
+- 支持控制自动生成规则的开关
+- 支持YAML和JSON格式的规则输出
 - 符合vmalert URL自动发现规则
 - 支持通过配置文件自定义规则模板
 - 提供Docker容器化部署支持
@@ -23,7 +27,14 @@ go mod download
 
 3. 运行服务
 ```bash
+# 默认配置启动
 go run main.go
+
+# 自定义规则生成配置
+go run main.go -groups 2 -rules 3
+
+# 禁用自动生成规则
+go run main.go -enable-auto-rules=false
 ```
 
 ### Docker部署
@@ -39,6 +50,20 @@ docker run -p 8080:8080 -v $(pwd)/template.yaml:/app/template.yaml registry.kbso
 ```
 
 ## 配置说明
+
+### 命令行参数
+
+- `-groups`: 要生成的规则组数量（默认：1）
+- `-rules`: 每个组中的规则数量（默认：1）
+- `-enable-auto-rules`: 是否启用自动生成规则（默认：true）
+
+### 规则生成逻辑
+
+- 服务会从模板中随机选择规则进行生成
+- 自动生成的规则会确保不同组的`alert`名称唯一
+- 支持将自动生成的规则与数据库中的规则合并输出
+- 支持通过配置文件自定义规则模板
+- 模板中规则越多，生成的规则更真实,减少`vmselect`命中`cache`的概率
 
 ### template.yaml
 

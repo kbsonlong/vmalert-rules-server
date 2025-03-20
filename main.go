@@ -4,8 +4,10 @@ import (
 	"flag"
 	"fmt"
 	"io/ioutil"
+	"math/rand"
 	"net/http"
 	"sync"
+	"time"
 	"vmalert-rules/controllers"
 	"vmalert-rules/models"
 
@@ -67,6 +69,16 @@ func loadTemplate() error {
 	mutex.Lock()
 	defer mutex.Unlock()
 
+	// 获取所有可用的规则
+	allRules := templateConfig.Groups[0].Rules
+	totalRules := len(allRules)
+	if totalRules == 0 {
+		return fmt.Errorf("no rules found in template")
+	}
+
+	// 初始化随机数生成器
+	rand.Seed(time.Now().UnixNano())
+
 	config.Groups = make([]Group, groupCount)
 	for i := 0; i < groupCount; i++ {
 		config.Groups[i] = Group{
@@ -77,9 +89,11 @@ func loadTemplate() error {
 		}
 
 		for j := 0; j < ruleCount; j++ {
-			templateRule := templateConfig.Groups[0].Rules[j%len(templateConfig.Groups[0].Rules)]
+			// 随机选择一个规则
+			randomIndex := rand.Intn(totalRules)
+			templateRule := allRules[randomIndex]
 			config.Groups[i].Rules[j] = Rule{
-				Alert:       fmt.Sprintf("%s_%d", templateRule.Alert, j+1),
+				Alert:       fmt.Sprintf("group_%d_%s_%d", i+1, templateRule.Alert, j+1),
 				Expr:        templateRule.Expr,
 				For:         templateRule.For,
 				Labels:      templateRule.Labels,
